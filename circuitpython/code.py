@@ -2,28 +2,30 @@ import os
 import time
 import board
 import digitalio
-import analogio
+
+# import analogio
 import ssl
 import wifi
 import socketpool
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 import adafruit_max1704x
 
-feed = "door"
+topic = os.getenv("MQTT_TOPIC", default="door")
 
 relay = digitalio.DigitalInOut(board.D13)
 relay.direction = digitalio.Direction.OUTPUT
 
-sensor1 = analogio.AnalogIn(board.A0)
+# sensor1 = analogio.AnalogIn(board.A0)
+
 
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print(f"Connected to MQTT! Listening for topic changes on {feed}")
+    print(f"Connected to MQTT! Listening for topic changes on {topic}")
     # Subscribe to all changes on the onoff_feed.
-    client.subscribe(feed)
+    client.subscribe(topic)
 
 
 def disconnected(client, userdata, rc):
@@ -50,6 +52,7 @@ def message(client, topic, message):
         else:
             relay.value = True
 
+
 print(f"Connecting to {os.getenv('CIRCUITPY_WIFI_SSID')}")
 wifi.radio.connect(
     os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
@@ -65,10 +68,10 @@ pool = socketpool.SocketPool(wifi.radio)
 ssl_context = ssl.create_default_context()
 
 mqtt_client = MQTT.MQTT(
-    broker="192.168.0.10",
-    port=1883,
-    username="feather",
-    password="jksdfjk239zjkh1",
+    broker=os.getenv("MQTT_BROKER"),
+    port=os.getenv("MQTT_PORT"),
+    username=os.getenv("MQTT_USERNAME"),
+    password=os.getenv("MQTT_PASSWORD"),
     socket_pool=pool,
     ssl_context=ssl_context,
 )
@@ -84,19 +87,19 @@ mqtt_client.connect()
 
 while True:
     try:
-        #sensor1_voltage = (sensor1.value * 2.57) / 51000
-        #mqtt_client.publish("sensor1_voltage", sensor1_voltage)
-        #print(f"sensor1 value {sensor1_voltage}")
-        #if sensor1_voltage > 2.85:
+        # sensor1_voltage = (sensor1.value * 2.57) / 51000
+        # mqtt_client.publish("sensor1_voltage", sensor1_voltage)
+        # print(f"sensor1 value {sensor1_voltage}")
+        # if sensor1_voltage > 2.85:
         #    print("unobstructed")
-        #else:
+        # else:
         #    print("obstructed")
 
         mqtt_client.publish("battery_voltage", monitor.cell_voltage)
-        #print(f"Battery voltage: {monitor.cell_voltage:.2f} Volts")
+        # print(f"Battery voltage: {monitor.cell_voltage:.2f} Volts")
 
         mqtt_client.publish("battery_percentage", monitor.cell_percent)
-        #print(f"Battery percentage: {monitor.cell_percent:.1f} %")
+        # print(f"Battery percentage: {monitor.cell_percent:.1f} %")
 
         # Poll the message queue
         mqtt_client.loop()
